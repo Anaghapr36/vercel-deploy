@@ -14,8 +14,15 @@ function App() {
   const [filteredNews, setFilteredNews] = useState([]);
   const [loadingNews, setLoadingNews] = useState(false);
   const [errorNews, setErrorNews] = useState(null);
+  const [generalNewsLoaded, setGeneralNewsLoaded] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const fetchFilteredNews = async () => {
+    if (portfolio.length === 0) {
+      setFilteredNews([]);
+      setErrorNews(null);
+      return;
+    }
     setLoadingNews(true);
     setErrorNews(null);
     try {
@@ -24,6 +31,9 @@ function App() {
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setFilteredNews(data.data);
+        if (data.data.length === 0) {
+          setErrorNews("No relevant news found for your portfolio stocks.");
+        }
       } else {
         setFilteredNews([]);
         setErrorNews(data.message || "No news found.");
@@ -31,6 +41,7 @@ function App() {
     } catch (err) {
       setFilteredNews([]);
       setErrorNews("Failed to fetch portfolio news.");
+      console.error("Portfolio news error:", err);
     } finally {
       setLoadingNews(false);
     }
@@ -45,10 +56,16 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stocks: newPortfolio }),
       });
-    } catch (err) {}
-    fetchFilteredNews();
+    } catch (err) {
+      console.error("Portfolio update error:", err);
+    }
+    // Fetch filtered news after portfolio is updated
+    if (newPortfolio.length > 0 && generalNewsLoaded) {
+      fetchFilteredNews();
+    }
   };
 
+  // Fetch portfolio on app load
   useEffect(() => {
     const fetchPortfolio = async () => {
       try {
@@ -57,24 +74,32 @@ function App() {
         const data = await res.json();
         if (data.success && Array.isArray(data.portfolio)) {
           setPortfolio(data.portfolio);
-          fetchFilteredNews();
         } else {
           setPortfolio([]);
-          fetchFilteredNews();
         }
       } catch (err) {
+        console.error("Error fetching portfolio:", err);
         setPortfolio([]);
-        fetchFilteredNews();
       }
     };
     fetchPortfolio();
   }, []);
 
+  // Fetch filtered news when portfolio changes and general news is loaded
+  useEffect(() => {
+    if (portfolio.length > 0 && generalNewsLoaded) {
+      const timer = setTimeout(() => {
+        fetchFilteredNews();
+      }, 500); // Small delay to ensure general news is fetched first
+      return () => clearTimeout(timer);
+    }
+  }, [portfolio, generalNewsLoaded]);
+
   return (
-    <div className="app">
-      <Header />
+    <div className={`app ${isDarkMode ? "dark-mode" : "light-mode"}`}>
+      <Header onThemeChange={setIsDarkMode} />
       <main className="app-main">
-        <GeneralNews />
+        <GeneralNews onNewsLoaded={() => setGeneralNewsLoaded(true)} />
         <PortfolioInput portfolio={portfolio} setPortfolio={updatePortfolio} />
         <FilteredNews
           portfolio={portfolio}

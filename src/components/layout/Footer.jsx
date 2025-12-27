@@ -1,7 +1,7 @@
 function Footer() {
   return (
     <footer className="app-footer">
-      <p>© 2024 Stock Market Dashboard - Built with React & Vite</p>
+      <p>© FinBulletin - Built with React & Vite</p>
     </footer>
   )
 }
